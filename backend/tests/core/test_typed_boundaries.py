@@ -6,11 +6,11 @@ from pathlib import Path
 import pytest
 from openai.types.chat import ChatCompletionMessage
 
-from flowpay.core.config import load_settings
-from flowpay.core.event_log import EventStore
-from flowpay.core.event_log.types import require_event
-from flowpay.core.json import JsonObject, parse_json, require_object
-from flowpay.core.llm.chat.messages import MessageLog
+from repo_evidence.core.config import load_settings
+from repo_evidence.core.event_log import EventStore
+from repo_evidence.core.event_log.types import require_event
+from repo_evidence.core.json import JsonObject, parse_json, require_object
+from repo_evidence.core.llm.chat.messages import MessageLog
 
 
 def test_message_checkpoint_preserves_extensions_and_is_copied() -> None:
@@ -67,6 +67,6 @@ def test_event_validation_keeps_extensions_and_rejects_coercion(tmp_path: Path) 
 @pytest.mark.parametrize("table", ["model", "embedding"])
 def test_unknown_nested_configuration_is_not_silently_ignored(tmp_path: Path, table: str) -> None:
     path = tmp_path / "settings.toml"
-    path.write_text(f'data_dir="."\ndataset_path="."\n[{table}]\ntypo=true\n')
+    path.write_text(f'data_dir="."\n[{table}]\ntypo=true\n')
     with pytest.raises(ValueError, match="Unknown"):
         load_settings(path)

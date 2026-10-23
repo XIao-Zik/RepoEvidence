@@ -7,10 +7,10 @@ from typing import override
 
 import pytest
 
-from flowpay.core.event_log import EventStore
-from flowpay.core.event_log.contracts import EventItems
-from flowpay.core.event_log.types import Event
-from flowpay.core.json import parse_json
+from repo_evidence.core.event_log import EventStore
+from repo_evidence.core.event_log.contracts import EventItems
+from repo_evidence.core.event_log.types import Event
+from repo_evidence.core.json import parse_json
 
 
 def test_append_only_and_reopen(tmp_path: Path) -> None:
@@ -56,7 +56,7 @@ async def test_async_writer_waits_for_commit_before_propagating_cancellation() -
     import asyncio
     import threading
 
-    from flowpay.core.event_log.contracts import AsyncEventWriter
+    from repo_evidence.core.event_log.contracts import AsyncEventWriter
 
     entered = asyncio.Event()
     release = threading.Event()
@@ -97,7 +97,7 @@ async def test_async_writer_waits_for_commit_before_propagating_cancellation() -
 def test_summary_matches_replay_without_loading_raw_history(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from flowpay.core.chat.session_view import build_session_view
+    from repo_evidence.core.chat.session_view import build_session_view
 
     store = EventStore(tmp_path / "events.sqlite")
     store.append("s", [("session.created", {"workflow": {"id": "test", "version": "1"}})])
@@ -134,7 +134,7 @@ def test_run_view_requires_current_start_metadata(tmp_path: Path) -> None:
     """缺少当前固定字段的早期运行记录不再被默认为空配置。"""
     from pydantic import ValidationError
 
-    from flowpay.core.chat.session_view import build_session_view
+    from repo_evidence.core.chat.session_view import build_session_view
 
     store = EventStore(tmp_path / "events.sqlite")
     store.append("s", [("session.created", {"workflow": {"id": "test", "version": "1"}})])

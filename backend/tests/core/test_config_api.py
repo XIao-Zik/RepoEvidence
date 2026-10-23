@@ -8,12 +8,12 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import TypeAdapter
 
-from flowpay.core.chat.types import SessionView
-from flowpay.core.config import Settings, load_settings
-from flowpay.core.event_log.types import Event
-from flowpay.core.execution.manager import SessionManager
-from flowpay.core.http import create_app
-from flowpay.core.json import parse_json, require_object
+from repo_evidence.core.chat.types import SessionView
+from repo_evidence.core.config import Settings, load_settings
+from repo_evidence.core.event_log.types import Event
+from repo_evidence.core.execution.manager import SessionManager
+from repo_evidence.core.http import create_app
+from repo_evidence.core.json import parse_json, require_object
 from tests.core.fixtures import FixtureWorkflow
 
 
@@ -30,20 +30,39 @@ def test_configuration_is_relative_to_file_and_does_not_capture_key(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = tmp_path / "local.toml"
-    path.write_text('data_dir="./state"\ndataset_path="../dataset"\n')
-    monkeypatch.setenv("FLOWPAY_PORT", "8011")
-    monkeypatch.setenv("FLOWPAY_MODEL_API_KEY", "not-to-be-recorded")
+    path.write_text('data_dir="./state"\n')
+    monkeypatch.setenv("REPO_EVIDENCE_PORT", "8011")
+    monkeypatch.setenv("REPO_EVIDENCE_MODEL_API_KEY", "not-to-be-recorded")
     settings = load_settings(path)
     assert settings.data_dir == tmp_path / "state"
     assert settings.port == 8011
     assert "not-to-be-recorded" not in json.dumps(settings.snapshot())
-    path.write_text('data_dir="./state"\ndataset_path="../dataset"\ntypo=1\n')
+    path.write_text('data_dir="./state"\ntypo=1\n')
     with pytest.raises(ValueError, match="Unknown"):
         load_settings(path)
 
 
+def test_configuration_uses_repo_evidence_environment_and_resolves_allowed_roots(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = tmp_path / "local.toml"
+    config.write_text('data_dir="./state"\n', encoding="utf-8")
+    monkeypatch.setenv("REPO_EVIDENCE_PORT", "8012")
+    monkeypatch.setenv(
+        "REPO_EVIDENCE_ALLOWED_ROOTS",
+        '[{"id":"projects","path":"./projects"}]',
+    )
+
+    settings = load_settings(config)
+
+    assert settings.port == 8012
+    assert settings.model.api_key_env == "REPO_EVIDENCE_MODEL_API_KEY"
+    assert settings.repository_roots[0].id == "projects"
+    assert settings.repository_roots[0].path == tmp_path / "projects"
+
+
 def test_http_lifecycle_export_and_restart(tmp_path: Path) -> None:
-    settings = Settings(tmp_path, tmp_path / "dataset", mock_delay_ms=0)
+    settings = Settings(tmp_path, mock_delay_ms=0)
     with TestClient(create_app(settings, FixtureWorkflow(settings))) as client:
         assert client.get("/api/health").status_code == 200
         assert (
@@ -118,7 +137,7 @@ def test_http_lifecycle_export_and_restart(tmp_path: Path) -> None:
 
 
 def test_second_backend_cannot_open_same_runtime(tmp_path: Path) -> None:
-    settings = Settings(tmp_path, tmp_path / "dataset", mock_delay_ms=0)
+    settings = Settings(tmp_path, mock_delay_ms=0)
     with TestClient(create_app(settings, FixtureWorkflow(settings))):
         with pytest.raises(RuntimeError, match="already has"):
             with TestClient(create_app(settings, FixtureWorkflow(settings))):
@@ -129,13 +148,11 @@ def test_model_options_from_toml_and_environment(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = tmp_path / "model.toml"
-    path.write_text(
-        'data_dir="./state"\ndataset_path="../dataset"\n[model.request_options]\nmax_tokens=2048\n'
-    )
+    path.write_text('data_dir="./state"\n[model.request_options]\nmax_tokens=2048\n')
     assert load_settings(path).model.request_options == {"max_tokens": 2048}
-    monkeypatch.setenv("FLOWPAY_MODEL_REQUEST_OPTIONS", '{"thinking":{"type":"enabled"}}')
+    monkeypatch.setenv("REPO_EVIDENCE_MODEL_REQUEST_OPTIONS", '{"thinking":{"type":"enabled"}}')
     assert load_settings(path).model.request_options == {"thinking": {"type": "enabled"}}
-    monkeypatch.setenv("FLOWPAY_MODEL_REQUEST_OPTIONS", "[]")
+    monkeypatch.setenv("REPO_EVIDENCE_MODEL_REQUEST_OPTIONS", "[]")
     with pytest.raises(ValueError, match="must be an object"):
         load_settings(path)
 
@@ -143,7 +160,7 @@ def test_model_options_from_toml_and_environment(
 def test_internal_key_error_is_not_reported_as_missing_session(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    settings = Settings(tmp_path, tmp_path / "dataset")
+    settings = Settings(tmp_path)
     app = create_app(settings, FixtureWorkflow(settings))
     with TestClient(app, raise_server_exceptions=False) as client:
 

@@ -1,4 +1,4 @@
-# 课程前端：依赖在镜像里装好，源码运行时挂载进来，vite 负责热更新。
+# RepoEvidence 前端：依赖在镜像里装好，源码运行时挂载进来，Vite 负责热更新。
 FROM node:22-slim
 
 ENV NODE_ENV=development

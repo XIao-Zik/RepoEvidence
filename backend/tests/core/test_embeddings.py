@@ -5,12 +5,12 @@ from pathlib import Path
 import httpx
 import pytest
 
-from flowpay.core.agent.trace import Tracer
-from flowpay.core.event_log import EventStore
-from flowpay.core.json import JsonObject, parse_json, require_list, require_object
-from flowpay.core.llm.embedding import EmbeddingClient, EmbeddingSettings
-from flowpay.core.llm.embedding.openai_embedding import OpenAiEmbeddingModel
-from flowpay.core.llm.embedding.settings import same_vector_space
+from repo_evidence.core.agent.trace import Tracer
+from repo_evidence.core.event_log import EventStore
+from repo_evidence.core.json import JsonObject, parse_json, require_list, require_object
+from repo_evidence.core.llm.embedding import EmbeddingClient, EmbeddingSettings
+from repo_evidence.core.llm.embedding.openai_embedding import OpenAiEmbeddingModel
+from repo_evidence.core.llm.embedding.settings import same_vector_space
 
 
 def settings(*, request_options: JsonObject | None = None) -> EmbeddingSettings:
@@ -104,15 +104,15 @@ async def test_embedding_http_error_preserved(
 
 
 def test_embedding_configuration_loader(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from flowpay.core.config import load_settings
+    from repo_evidence.core.config import load_settings
 
     config = tmp_path / "config.toml"
     config.write_text(
-        'data_dir="."\ndataset_path="."\n[embedding]\n'
+        'data_dir="."\n[embedding]\n'
         + 'name="fixture"\nbase_url="https://embedding.test"\n'
         + 'dimensions=3\napi_key_env="TEST_EMBEDDING_KEY"\n'
     )
-    monkeypatch.setenv("FLOWPAY_EMBEDDING_BATCH_SIZE", "4")
+    monkeypatch.setenv("REPO_EVIDENCE_EMBEDDING_BATCH_SIZE", "4")
     result = load_settings(config)
     assert result.embedding is not None
     assert result.embedding.batch_size == 4

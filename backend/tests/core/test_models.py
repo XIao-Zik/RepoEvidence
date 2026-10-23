@@ -5,18 +5,18 @@ from pathlib import Path
 import httpx
 import pytest
 
-from flowpay.core.agent.trace import Tracer
-from flowpay.core.config import ModelSettings
-from flowpay.core.event_log import EventStore
-from flowpay.core.json import (
+from repo_evidence.core.agent.trace import Tracer
+from repo_evidence.core.config import ModelSettings
+from repo_evidence.core.event_log import EventStore
+from repo_evidence.core.json import (
     JsonObject,
     parse_json,
     require_list,
     require_object,
     require_text,
 )
-from flowpay.core.llm.chat.client import ChatClient
-from flowpay.core.llm.chat.openai_chat import OpenAiChatModel
+from repo_evidence.core.llm.chat.client import ChatClient
+from repo_evidence.core.llm.chat.openai_chat import OpenAiChatModel
 
 
 async def test_wire_stream_and_tool_argument_fragments_are_preserved(
@@ -278,7 +278,7 @@ async def test_protocol_tool_arguments_fail_with_a_record_before_execution(
 ) -> None:
     from openai.types.chat import ChatCompletionMessageFunctionToolCall
 
-    from flowpay.core.tools import Tool, Toolbox
+    from repo_evidence.core.tools import Tool, Toolbox
 
     executed: list[JsonObject] = []
 

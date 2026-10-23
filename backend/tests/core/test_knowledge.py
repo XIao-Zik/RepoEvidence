@@ -7,28 +7,35 @@ import httpx
 import psycopg
 import pytest
 
-from flowpay.core.agent.trace import Tracer
-from flowpay.core.event_log import EventStore
-from flowpay.core.event_log.store import new_id
-from flowpay.core.json import (
+from repo_evidence.core.agent.trace import Tracer
+from repo_evidence.core.event_log import EventStore
+from repo_evidence.core.event_log.store import new_id
+from repo_evidence.core.json import (
     JsonObject,
     parse_json,
     require_list,
     require_object,
     require_text,
 )
-from flowpay.core.knowledge import Chunk, Document, PostgresVectorStore
-from flowpay.core.knowledge.client import KnowledgeClient
-from flowpay.core.llm.embedding import EmbeddingClient, EmbeddingSettings
-from flowpay.core.llm.embedding.openai_embedding import OpenAiEmbeddingModel
+from repo_evidence.core.knowledge import Chunk, Document, PostgresVectorStore
+from repo_evidence.core.knowledge.client import KnowledgeClient
+from repo_evidence.core.llm.embedding import (
+    EmbeddedBatch,
+    EmbeddingClient,
+    EmbeddingSettings,
+    text_hash,
+)
+from repo_evidence.core.llm.embedding.openai_embedding import OpenAiEmbeddingModel
 
-pytestmark = pytest.mark.skipif(not os.getenv("FLOWPAY_TEST_POSTGRES"), reason="Opt-in PostgreSQL")
+pytestmark = pytest.mark.skipif(
+    not os.getenv("REPO_EVIDENCE_TEST_POSTGRES"), reason="Opt-in PostgreSQL"
+)
 
 
 @pytest.fixture
 def stores():
-    builder = PostgresVectorStore(os.environ["FLOWPAY_KNOWLEDGE_BUILDER_DSN"])
-    reader = PostgresVectorStore(os.environ["FLOWPAY_KNOWLEDGE_DSN"])
+    builder = PostgresVectorStore(os.environ["REPO_EVIDENCE_KNOWLEDGE_BUILDER_DSN"])
+    reader = PostgresVectorStore(os.environ["REPO_EVIDENCE_KNOWLEDGE_DSN"])
     yield builder, reader
     builder.close()
     reader.close()
@@ -150,3 +157,42 @@ async def test_wrong_input_batch_rolls_back(
     with pytest.raises(ValueError, match="input differs"):
         builder.save_embeddings(cid, [("doc", 1), ("doc", 2)], batch)
     assert len(builder.missing_embeddings(cid)) == 2
+
+
+def test_copy_unchanged_documents_reuses_ready_vectors_in_new_snapshot(
+    stores: tuple[PostgresVectorStore, PostgresVectorStore],
+) -> None:
+    """A refresh may reuse an unchanged file, but must publish it in a distinct collection."""
+    builder, reader = stores
+    settings = model_settings()
+    source = collection(builder, settings)
+    content = "def authenticate(token: str) -> bool:\n    return bool(token)\n"
+    document = Document(
+        "auth",
+        "src/auth.py",
+        "src/auth.py",
+        content,
+        {"content_type": "code", "language": "python"},
+    )
+    builder.save_document(source, document, [Chunk(1, content, {"start_line": 1, "end_line": 2})])
+    builder.save_embeddings(
+        source,
+        [("auth", 1)],
+        EmbeddedBatch(settings.identity(), [text_hash(content)], [[1, 0, 0]], [{}]),
+    )
+    builder.mark_ready(source, {"auth": 1})
+
+    target = collection(builder, settings)
+    copied = builder.copy_unchanged_documents(
+        source,
+        target,
+        {"src/auth.py": text_hash(content), "src/changed.py": "different-file-hash"},
+    )
+
+    assert copied == ("src/auth.py",)
+    assert builder.missing_embeddings(target) == []
+    builder.mark_ready(target, {"auth": 1})
+    passage = reader.read_passage(target, "auth", 1)
+    assert passage.passage.text == content
+    assert passage.passage.source.collection_id == target
+    assert passage.passage.source.collection_id != source

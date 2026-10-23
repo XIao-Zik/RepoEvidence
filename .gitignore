@@ -10,11 +10,12 @@ __pycache__/
 node_modules/
 dist/
 var/
+artifacts/
 *.egg-info/
 *.tsbuildinfo
 
 # 模拟器生成的业务快照，由 dataset 工程重新构建，不进版本库
 dataset/data/generated/
 
-# 数据集不随仓库分发：解包 flowpay-dataset-v1.tar.gz 后用 FLOWPAY_DATASET_ROOT 指向它。
+# 数据集不随仓库分发：解包 repo_evidence-dataset-v1.tar.gz 后用 FLOWPAY_DATASET_ROOT 指向它。
 /dataset/

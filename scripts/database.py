@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import cast
 
 import psycopg
-from flowpay.core.json import require_text
+from repo_evidence.core.json import require_text
 from psycopg import sql
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,7 +38,7 @@ def setup() -> None:
         ],
         check=True,
     )
-    with psycopg.connect(os.environ["FLOWPAY_KNOWLEDGE_ADMIN_DSN"]) as db:
+    with psycopg.connect(os.environ["REPO_EVIDENCE_KNOWLEDGE_ADMIN_DSN"]) as db:
         row = db.execute("SELECT current_database()").fetchone()
         if row is None:
             raise RuntimeError("Database identity was not returned")
@@ -49,8 +49,8 @@ def setup() -> None:
             )
         )
         # 口令固定：库只发布在本机回环，权限隔离靠下面的 GRANT，不靠口令强度。
-        password = os.environ.get("FLOWPAY_DB_PASSWORD", "flowpay_local")
-        for role in ("flowpay_knowledge_reader", "flowpay_knowledge_builder"):
+        password = os.environ.get("REPO_EVIDENCE_DB_PASSWORD", "repo_evidence_local")
+        for role in ("repo_evidence_knowledge_reader", "repo_evidence_knowledge_builder"):
             if not db.execute(
                 "SELECT 1 FROM pg_roles WHERE rolname=%s", (role,)
             ).fetchone():
@@ -75,12 +75,12 @@ def setup() -> None:
                 )
             )
         db.execute(
-            "GRANT INSERT ON collections,documents,chunks TO flowpay_knowledge_builder"
+            "GRANT INSERT ON collections,documents,chunks TO repo_evidence_knowledge_builder"
         )
         db.execute(
-            "GRANT UPDATE(status,ready_at) ON collections TO flowpay_knowledge_builder"
+            "GRANT UPDATE(status,ready_at) ON collections TO repo_evidence_knowledge_builder"
         )
-        db.execute("GRANT UPDATE(embedding) ON chunks TO flowpay_knowledge_builder")
+        db.execute("GRANT UPDATE(embedding) ON chunks TO repo_evidence_knowledge_builder")
     print("Knowledge database migrated; reader and builder roles granted.")
 
 

@@ -1,0 +1,20 @@
+{
+  "cases": [
+    {
+      "id": "scanner-module-location",
+      "question": "Where does safe repository scanning happen?",
+      "answer": "RepositoryScanner performs safe deterministic scanning.",
+      "citations": [{"path": "backend/src/repo_evidence/repositories/scanner.py", "start_line": 1, "end_line": 3}],
+      "expected_citations": [{"path": "backend/src/repo_evidence/repositories/scanner.py", "start_line": 1, "end_line": 3}],
+      "required_terms": ["RepositoryScanner"]
+    },
+    {
+      "id": "snapshot-stale-protection",
+      "question": "What detects source changes?",
+      "answer": "RepositoryIndexer compares the source manifest before serving current evidence.",
+      "citations": [{"path": "backend/src/repo_evidence/repositories/indexer.py", "start_line": 163, "end_line": 180}],
+      "expected_citations": [{"path": "backend/src/repo_evidence/repositories/indexer.py", "start_line": 163, "end_line": 180}],
+      "required_terms": ["manifest"]
+    }
+  ]
+}

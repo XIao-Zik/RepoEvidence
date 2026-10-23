@@ -4,20 +4,21 @@ from pathlib import Path
 
 import pytest
 
-from flowpay.core.config import Settings
-from flowpay.core.event_log import EventStore
-from flowpay.core.event_log.contracts import EventItems
-from flowpay.core.event_log.types import Event
-from flowpay.core.execution.contracts import TurnInput, TurnResult, Workflow
-from flowpay.core.execution.errors import Conflict
-from flowpay.core.execution.manager import SessionManager
-from flowpay.core.execution.runtime import AgentRuntime
-from flowpay.core.execution.stage import StageCard
+from repo_evidence.core.config import RepositoryRootSettings, Settings
+from repo_evidence.core.event_log import EventStore
+from repo_evidence.core.event_log.contracts import EventItems
+from repo_evidence.core.event_log.types import Event
+from repo_evidence.core.execution.contracts import TurnInput, TurnResult, Workflow
+from repo_evidence.core.execution.errors import Conflict
+from repo_evidence.core.execution.manager import SessionManager
+from repo_evidence.core.execution.resources import RuntimeResources
+from repo_evidence.core.execution.runtime import AgentRuntime
+from repo_evidence.core.execution.stage import StageCard
 from tests.core.fixtures import FixtureWorkflow
 
 
 def manager(tmp_path: Path, delay: int = 0, workflow: Workflow | None = None) -> SessionManager:
-    settings = Settings(tmp_path, tmp_path / "dataset", mock_delay_ms=delay)
+    settings = Settings(tmp_path, mock_delay_ms=delay)
     return SessionManager(
         EventStore(tmp_path / "sessions.sqlite"), workflow or FixtureWorkflow(settings), settings
     )
@@ -205,3 +206,33 @@ async def test_submission_canceled_after_commit_remains_resumable(
     assert not runtime.tasks
     await runtime.resume_run(sid, "continue")
     assert (await settle(runtime, sid))["status"] == "waiting_user"
+
+
+def test_runtime_resources_open_knowledge_for_repository_selected_collections(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from repo_evidence.core import knowledge
+
+    opened: list[str] = []
+
+    class Store:
+        def __init__(self, dsn: str) -> None:
+            opened.append(dsn)
+
+        def close(self) -> None:
+            return None
+
+    root = tmp_path / "projects"
+    root.mkdir()
+    settings = Settings(
+        tmp_path / "var",
+        knowledge_url_env="TEST_KNOWLEDGE_DSN",
+        repository_roots=(RepositoryRootSettings("projects", root),),
+    )
+    monkeypatch.setenv("TEST_KNOWLEDGE_DSN", "postgresql://reader")
+    monkeypatch.setattr(knowledge, "PostgresVectorStore", Store)
+
+    resources = RuntimeResources.from_settings(settings)
+
+    assert opened == ["postgresql://reader"]
+    resources.close()

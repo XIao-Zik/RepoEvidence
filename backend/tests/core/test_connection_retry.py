@@ -9,13 +9,13 @@ import httpx
 import pytest
 from openai import APIConnectionError
 
-from flowpay.core.agent.trace import Tracer
-from flowpay.core.config import ModelSettings
-from flowpay.core.event_log import EventStore
-from flowpay.core.execution.runtime import AgentRuntime
-from flowpay.core.json import JsonObject
-from flowpay.core.llm.chat.client import ChatClient
-from flowpay.core.llm.chat.openai_chat import OpenAiChatModel
+from repo_evidence.core.agent.trace import Tracer
+from repo_evidence.core.config import ModelSettings
+from repo_evidence.core.event_log import EventStore
+from repo_evidence.core.execution.runtime import AgentRuntime
+from repo_evidence.core.json import JsonObject
+from repo_evidence.core.llm.chat.client import ChatClient
+from repo_evidence.core.llm.chat.openai_chat import OpenAiChatModel
 
 COMPLETE = (
     'data: {"choices":[{"index":0,"delta":{"content":"你好"},"finish_reason":"stop"}]}'

@@ -1,4 +1,4 @@
-# 课程后端：依赖在镜像里装好，源码运行时挂载进来，改了立刻重载。
+# RepoEvidence 后端：依赖在镜像里装好，源码运行时挂载进来，改了立刻重载。
 FROM python:3.12-slim
 
 COPY --from=ghcr.io/astral-sh/uv:0.9.7 /uv /usr/local/bin/uv
@@ -20,6 +20,6 @@ RUN uv sync --project /app/backend --frozen --no-install-project
 ENV PYTHONPATH=/app/backend/src:/app
 
 EXPOSE 8000
-CMD ["uvicorn", "--factory", "flowpay.cli:app_factory", \
+CMD ["uvicorn", "--factory", "repo_evidence.cli:app_factory", \
      "--host", "0.0.0.0", "--port", "8000", \
      "--reload", "--reload-dir", "/app/backend/src"]

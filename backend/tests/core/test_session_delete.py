@@ -6,16 +6,16 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from flowpay.core.chat.errors import SessionNotFound
-from flowpay.core.config import Settings
-from flowpay.core.event_log import EventStore
-from flowpay.core.execution.contracts import TurnInput, TurnResult
-from flowpay.core.execution.errors import Conflict
-from flowpay.core.execution.manager import SessionManager
-from flowpay.core.execution.runtime import AgentRuntime
-from flowpay.core.execution.stage import StageCard
-from flowpay.core.http import create_app
-from flowpay.core.json import parse_json, require_object, require_text
+from repo_evidence.core.chat.errors import SessionNotFound
+from repo_evidence.core.config import Settings
+from repo_evidence.core.event_log import EventStore
+from repo_evidence.core.execution.contracts import TurnInput, TurnResult
+from repo_evidence.core.execution.errors import Conflict
+from repo_evidence.core.execution.manager import SessionManager
+from repo_evidence.core.execution.runtime import AgentRuntime
+from repo_evidence.core.execution.stage import StageCard
+from repo_evidence.core.http import create_app
+from repo_evidence.core.json import parse_json, require_object, require_text
 from tests.core.fixtures import FixtureWorkflow
 
 
@@ -35,7 +35,7 @@ class WaitingWorkflow:
 
 async def test_batch_delete_running_guard_and_no_revival(tmp_path: Path) -> None:
     """批量含运行项时一个也不删；停止后清除，旧请求不能重新创建会话。"""
-    settings = Settings(tmp_path, tmp_path)
+    settings = Settings(tmp_path)
     store = EventStore(tmp_path / "sessions.sqlite")
     manager = SessionManager(store, WaitingWorkflow(), settings)
     try:
@@ -61,7 +61,7 @@ async def test_batch_delete_running_guard_and_no_revival(tmp_path: Path) -> None
 
 def test_delete_http_contract(tmp_path: Path) -> None:
     """单删和批删均返回实际 ID；读、导出、续跑已删除会话均不可访问。"""
-    settings = Settings(tmp_path, tmp_path)
+    settings = Settings(tmp_path)
     with TestClient(create_app(settings, FixtureWorkflow(settings))) as client:
         ids = [client.post("/api/sessions").json()["id"] for _ in range(3)]
         first = client.delete(f"/api/sessions/{ids[0]}")
@@ -101,7 +101,7 @@ async def test_cancel_delete_waits_for_storage_before_unlock(tmp_path: Path) -> 
             assert release.wait(3)
             return super().delete_sessions(session_ids)
 
-    settings = Settings(tmp_path, tmp_path)
+    settings = Settings(tmp_path)
     manager = SessionManager(SlowStore(tmp_path / "slow.sqlite"), WaitingWorkflow(), settings)
     try:
         sid = (await manager.create_session())["id"]
@@ -129,9 +129,9 @@ def test_active_stream_closes_when_session_deleted(
     from threading import Event
     from typing import cast
 
-    from flowpay.core.event_log.types import Event as TraceEvent
+    from repo_evidence.core.event_log.types import Event as TraceEvent
 
-    settings = Settings(tmp_path, tmp_path)
+    settings = Settings(tmp_path)
     app = create_app(settings, FixtureWorkflow(settings))
     with TestClient(app) as client:
         sid = require_text(require_object(parse_json(client.post("/api/sessions").content))["id"])

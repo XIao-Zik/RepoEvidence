@@ -7,10 +7,10 @@ from dataclasses import replace
 
 from openai.types.chat import ChatCompletion, ChatCompletionMessageParam, ChatCompletionToolParam
 
-from flowpay.core.event_log.contracts import EventSink
-from flowpay.core.json import JsonObject, to_json_object
-from flowpay.core.knowledge.contracts import Passage, PassageSource
-from flowpay.core.llm.chat import ChunkSink
+from repo_evidence.core.event_log.contracts import EventSink
+from repo_evidence.core.json import JsonObject, to_json_object
+from repo_evidence.core.knowledge.contracts import Passage, PassageSource
+from repo_evidence.core.llm.chat import ChunkSink
 
 ANSWER = "HTTP 410 后禁用端点。\n\n[doc:RULE-1#c001]"
 
@@ -96,7 +96,7 @@ class Search:
 
     def __init__(self) -> None:
         """每个测试持有独立的调用记录与阻塞信号。"""
-        self.queries: list[tuple[str, int]] = []
+        self.queries: list[tuple[str, int, JsonObject | None]] = []
         self.reads: list[str] = []
         self.fail: bool = False
         self.block: bool = False
@@ -117,8 +117,8 @@ class Search:
         filters: JsonObject | None = None,
     ) -> list[Passage]:
         """核对集合和无文档类型过滤；包含 missing 的查询模拟零命中。"""
-        assert collection_id == "fixture" and filters is None and self.tracer is not None
-        self.queries.append((text, limit))
+        assert collection_id == "fixture" and self.tracer is not None
+        self.queries.append((text, limit, filters))
         await self.tracer.emit("knowledge.request", {"query": text, "limit": limit})
         self.started.set()
         if self.block:
@@ -150,7 +150,7 @@ class Model:
     capabilities: dict[str, bool] = {"tools": True, "streaming": True}
 
     def __init__(self) -> None:
-        """测试显式安排每次调用结果，不用固定业务结论代替真实课程实现。"""
+        """测试显式安排每次调用结果，不用固定业务结论代替真实产品实现。"""
         self.responses: list[ChatCompletion | Exception] = []
         self.requests: list[JsonObject] = []
 

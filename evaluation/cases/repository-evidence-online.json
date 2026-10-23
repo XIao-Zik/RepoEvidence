@@ -1,0 +1,488 @@
+{
+  "cases": [
+    {
+      "id": "agent-system-evidence-only",
+      "category": "architecture",
+      "question": "代码证据助手在系统提示中对已验证事实和仓库写入分别有什么限制？请引用原文位置。",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/workflows/evidence.py",
+          "start_line": 29,
+          "end_line": 33
+        }
+      ],
+      "required_terms": [
+        "path:start-end",
+        "不要访问"
+      ]
+    },
+    {
+      "id": "agent-budget-limits",
+      "category": "architecture",
+      "question": "EvidenceWorkflow 的模型调用和工具调用预算各是多少？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/workflows/evidence.py",
+          "start_line": 45,
+          "end_line": 56
+        }
+      ],
+      "required_terms": [
+        "max_model_calls",
+        "max_tool_calls"
+      ]
+    },
+    {
+      "id": "http-api-surface",
+      "category": "architecture",
+      "question": "后端将哪些仓库与会话 API 注册到应用？请说明证据接口和会话创建接口。",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/core/http/app.py",
+          "start_line": 556,
+          "end_line": 580
+        }
+      ],
+      "required_terms": [
+        "/api/repositories",
+        "/api/sessions"
+      ]
+    },
+    {
+      "id": "application-composition",
+      "category": "architecture",
+      "question": "生产 FastAPI 应用如何组合 registry、workflow 和 indexer？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/bootstrap.py",
+          "start_line": 104,
+          "end_line": 114
+        }
+      ],
+      "required_terms": [
+        "create_application",
+        "create_app"
+      ]
+    },
+    {
+      "id": "snapshot-architecture-guide",
+      "category": "architecture",
+      "question": "项目文档定义的索引快照发布和会话绑定流程是什么？",
+      "expected_citations": [
+        {
+          "path": "docs/PROJECT_GUIDE.md",
+          "start_line": 24,
+          "end_line": 41
+        }
+      ],
+      "required_terms": [
+        "collection_id",
+        "ready",
+        "repository_id"
+      ]
+    },
+    {
+      "id": "model-settings-boundary",
+      "category": "configuration",
+      "question": "聊天模型的名称、地址和 API Key 环境变量在配置中怎样定义？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/core/config/settings.py",
+          "start_line": 12,
+          "end_line": 32
+        }
+      ],
+      "required_terms": [
+        "api_key_env",
+        "base_url",
+        "name"
+      ]
+    },
+    {
+      "id": "settings-snapshot-secret-boundary",
+      "category": "configuration",
+      "question": "运行配置快照如何避免保存认证密钥本身？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/core/config/settings.py",
+          "start_line": 73,
+          "end_line": 84
+        }
+      ],
+      "required_terms": [
+        "环境变量名",
+        "不读取其值"
+      ]
+    },
+    {
+      "id": "workflow-provider-preflight",
+      "category": "configuration",
+      "question": "创建生产 EvidenceWorkflow 前会检查哪些模型与环境变量条件？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/bootstrap.py",
+          "start_line": 60,
+          "end_line": 77
+        }
+      ],
+      "required_terms": [
+        "openai-compatible",
+        "Missing environment variable"
+      ]
+    },
+    {
+      "id": "indexer-builder-configuration",
+      "category": "configuration",
+      "question": "RepositoryIndexer 使用哪一种数据库连接和 embedding 客户端创建？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/bootstrap.py",
+          "start_line": 80,
+          "end_line": 100
+        }
+      ],
+      "required_terms": [
+        "PostgresVectorStore",
+        "EmbeddingClient"
+      ]
+    },
+    {
+      "id": "scanner-file-type-configuration",
+      "category": "configuration",
+      "question": "扫描器支持哪些文件内容类型与语言映射？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/scanner.py",
+          "start_line": 48,
+          "end_line": 78
+        }
+      ],
+      "required_terms": [
+        "source_suffixes",
+        "document_suffixes",
+        "config_suffixes"
+      ]
+    },
+    {
+      "id": "index-build-start-flow",
+      "category": "call-chain",
+      "question": "RepositoryIndexer.build 在建立语料前如何扫描仓库并处理未变化的 manifest？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/indexer.py",
+          "start_line": 92,
+          "end_line": 118
+        }
+      ],
+      "required_terms": [
+        "manifest_sha256",
+        "prepare_repository_corpus"
+      ]
+    },
+    {
+      "id": "index-reuse-flow",
+      "category": "call-chain",
+      "question": "增量索引如何识别并复用未变化文件？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/indexer.py",
+          "start_line": 138,
+          "end_line": 161
+        }
+      ],
+      "required_terms": [
+        "reusable",
+        "copy_unchanged_documents"
+      ]
+    },
+    {
+      "id": "index-finalization-flow",
+      "category": "call-chain",
+      "question": "索引在什么检查后才标记 ready 并激活快照？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/indexer.py",
+          "start_line": 164,
+          "end_line": 178
+        }
+      ],
+      "required_terms": [
+        "mark_ready",
+        "activate_snapshot"
+      ]
+    },
+    {
+      "id": "question-currentness-flow",
+      "category": "call-chain",
+      "question": "EvidenceWorkflow 在回答问题前如何判断仓库和会话快照仍是当前版本？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/workflows/evidence.py",
+          "start_line": 69,
+          "end_line": 80
+        }
+      ],
+      "required_terms": [
+        "is_current",
+        "is_current_collection"
+      ]
+    },
+    {
+      "id": "current-scan-flow",
+      "category": "call-chain",
+      "question": "RepositoryTools 如何通过当前扫描结果把过期快照标记为 stale？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/tools.py",
+          "start_line": 110,
+          "end_line": 122
+        }
+      ],
+      "required_terms": [
+        "manifest_sha256",
+        "set_current_snapshot_stale"
+      ]
+    },
+    {
+      "id": "snapshot-change-guide",
+      "category": "snapshot",
+      "question": "代码变更后系统为什么拒绝旧索引上的新问答，刷新后又如何复用数据？",
+      "expected_citations": [
+        {
+          "path": "docs/PROJECT_GUIDE.md",
+          "start_line": 33,
+          "end_line": 43
+        }
+      ],
+      "required_terms": [
+        "stale",
+        "collection_id",
+        "复用"
+      ]
+    },
+    {
+      "id": "read-stale-protection",
+      "category": "snapshot",
+      "question": "读取文件时仓库变更会触发什么保护？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/tools.py",
+          "start_line": 45,
+          "end_line": 63
+        }
+      ],
+      "required_terms": [
+        "Repository changed",
+        "refresh"
+      ]
+    },
+    {
+      "id": "current-collection-guard",
+      "category": "snapshot",
+      "question": "如何确认一个会话绑定的是当前证据集合？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/tools.py",
+          "start_line": 65,
+          "end_line": 73
+        }
+      ],
+      "required_terms": [
+        "current_collection_id",
+        "ready"
+      ]
+    },
+    {
+      "id": "snapshot-prune-protection",
+      "category": "snapshot",
+      "question": "旧快照清理候选为何不会包含当前或受保护集合？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/store.py",
+          "start_line": 250,
+          "end_line": 264
+        }
+      ],
+      "required_terms": [
+        "protected_collection_ids",
+        "current_collection_id"
+      ]
+    },
+    {
+      "id": "index-failure-state",
+      "category": "snapshot",
+      "question": "索引失败后已有快照和首次索引分别会进入什么状态？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/store.py",
+          "start_line": 307,
+          "end_line": 316
+        }
+      ],
+      "required_terms": [
+        "stale",
+        "failed"
+      ]
+    },
+    {
+      "id": "path-traversal-protection",
+      "category": "error-boundary",
+      "question": "读取请求如何拒绝越出允许根目录的路径？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/scanner.py",
+          "start_line": 170,
+          "end_line": 177
+        }
+      ],
+      "required_terms": [
+        "is_relative_to",
+        "escapes"
+      ]
+    },
+    {
+      "id": "scanner-secret-protection",
+      "category": "error-boundary",
+      "question": "扫描器会因哪些敏感文件或内容原因排除文件？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/scanner.py",
+          "start_line": 179,
+          "end_line": 202
+        }
+      ],
+      "required_terms": [
+        "sensitive filename",
+        "sensitive content"
+      ]
+    },
+    {
+      "id": "line-range-validation",
+      "category": "error-boundary",
+      "question": "read_file 对行号范围有哪些输入校验？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/tools.py",
+          "start_line": 45,
+          "end_line": 50
+        }
+      ],
+      "required_terms": [
+        "positive integers",
+        "End line"
+      ]
+    },
+    {
+      "id": "unsupported-citation-repair",
+      "category": "error-boundary",
+      "question": "Agent 如何发现并纠正回答中没有证据支持的引用？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/workflows/evidence.py",
+          "start_line": 345,
+          "end_line": 368
+        }
+      ],
+      "required_terms": [
+        "answer.disputed",
+        "unsupported"
+      ]
+    },
+    {
+      "id": "directory-depth-validation",
+      "category": "error-boundary",
+      "question": "list_directory 对目录深度和路径输入有什么边界限制？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/repositories/tools.py",
+          "start_line": 75,
+          "end_line": 96
+        }
+      ],
+      "required_terms": [
+        "1 to 3",
+        "non-empty relative path"
+      ]
+    },
+    {
+      "id": "search-and-read-tools",
+      "category": "tool-boundary",
+      "question": "代码证据 Agent 提供的 search_repository 与 read_file 各自做什么？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/workflows/evidence.py",
+          "start_line": 205,
+          "end_line": 230
+        }
+      ],
+      "required_terms": [
+        "search_repository",
+        "read_file"
+      ]
+    },
+    {
+      "id": "typed-search-tools",
+      "category": "tool-boundary",
+      "question": "search_docs 与 search_logs 分别限制检索什么内容？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/workflows/evidence.py",
+          "start_line": 232,
+          "end_line": 252
+        }
+      ],
+      "required_terms": [
+        "search_docs",
+        "search_logs"
+      ]
+    },
+    {
+      "id": "directory-tool-boundary",
+      "category": "tool-boundary",
+      "question": "list_directory 的深度上限和输出边界是什么？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/workflows/evidence.py",
+          "start_line": 254,
+          "end_line": 265
+        }
+      ],
+      "required_terms": [
+        "list_directory",
+        "maximum"
+      ]
+    },
+    {
+      "id": "patch-preview-read-only",
+      "category": "tool-boundary",
+      "question": "preview_patch 为什么不能直接修改用户仓库？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/workflows/evidence.py",
+          "start_line": 267,
+          "end_line": 295
+        }
+      ],
+      "required_terms": [
+        "preview_patch",
+        "只返回"
+      ]
+    },
+    {
+      "id": "bounded-read-evidence",
+      "category": "tool-boundary",
+      "question": "read_file 返回的文件片段如何被提升为带精确行号的证据？",
+      "expected_citations": [
+        {
+          "path": "backend/src/repo_evidence/workflows/evidence.py",
+          "start_line": 330,
+          "end_line": 342
+        }
+      ],
+      "required_terms": [
+        "start_line",
+        "end_line",
+        "bounded_file_read"
+      ]
+    }
+  ]

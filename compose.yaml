@@ -1,46 +1,39 @@
-name: flowpay-teaching
+name: repo-evidence
 
-# 数据集不随仓库分发：在 .env 里把 FLOWPAY_DATASET_ROOT 指向数据集目录或 .tar.gz / .zip。
-# make up 会自动解开数据包，并解析成绝对目录路径再挂载。
-# 容器内统一挂在 /dataset，业务数据在 /dataset/data。
+# 仅把明确授权的宿主机代码根目录以只读方式挂载到后端。
 
 services:
   postgres:
     image: pgvector/pgvector:0.8.2-pg17
     environment:
-      POSTGRES_USER: flowpay_admin
-      # 库只发布在 127.0.0.1，里面是公开的教学数据，口令固定即可，用户不用配。
-      POSTGRES_PASSWORD: ${FLOWPAY_DB_PASSWORD:-flowpay_local}
-      POSTGRES_DB: flowpay_knowledge
+      POSTGRES_USER: repo_evidence_admin
+      POSTGRES_PASSWORD: ${REPO_EVIDENCE_DB_PASSWORD:-repo_evidence_local}
+      POSTGRES_DB: repo_evidence_knowledge
     ports:
-      - "127.0.0.1:55432:5432"
+      - "127.0.0.1:${REPO_EVIDENCE_POSTGRES_PORT:-55432}:5432"
     volumes:
-      - flowpay_postgres:/var/lib/postgresql/data
+      - repo_evidence_postgres:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/01-databases.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U flowpay_admin -d flowpay_knowledge"]
+      test: ["CMD-SHELL", "pg_isready -U repo_evidence_admin -d repo_evidence_knowledge"]
       interval: 3s
       timeout: 3s
       retries: 20
 
-  # 首次启动时把业务快照生成到数据集目录；已经生成过就直接退出。
-  # 模拟器只用标准库，因此不需要后端镜像的依赖。
-  dataset-init:
-    image: python:3.12-slim
-    volumes:
-      - ${FLOWPAY_DATASET_ROOT:?Set FLOWPAY_DATASET_ROOT in .env}:/dataset
-    working_dir: /dataset
+  database-init:
+    build:
+      context: .
+      dockerfile: infra/backend/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      PYTHONPATH: /dataset/src
-    command:
-      - sh
-      - -c
-      - |
-        if [ -f data/generated/canonical/manifest.json ]; then
-          echo "business snapshot already present, skipping"
-        else
-          python -m flowpay_simulator.cli simulate
-        fi
+      REPO_EVIDENCE_KNOWLEDGE_ADMIN_DSN: postgresql://repo_evidence_admin:${REPO_EVIDENCE_DB_PASSWORD:-repo_evidence_local}@postgres:5432/repo_evidence_knowledge
+      REPO_EVIDENCE_DB_PASSWORD: ${REPO_EVIDENCE_DB_PASSWORD:-repo_evidence_local}
+    volumes:
+      - ./backend:/app/backend
+      - ./scripts:/app/scripts:ro
+    command: ["python", "/app/scripts/database.py", "setup"]
 
   backend:
     build:
@@ -49,39 +42,33 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      dataset-init:
+      database-init:
         condition: service_completed_successfully
       ollama-init:
         condition: service_completed_successfully
     environment:
-      FLOWPAY_DATASET_PATH: /dataset/data
-      FLOWPAY_DATASET_ROOT: /dataset
-      FLOWPAY_CONFIG: /app/backend/configs/local.toml
-      FLOWPAY_HOST: 0.0.0.0
-      FLOWPAY_DATA_DIR: /app/var/live
-      FLOWPAY_WORKFLOW: ${STAGE:-s1}
-      # 默认用下面 compose 起的 ollama 服务；换成远端 Ollama 就在 .env 里覆盖这一项。
-      # 端口必须是 11434：知识集合的向量是在该端口建的，换端口会被向量空间校验判为不兼容。
-      FLOWPAY_EMBEDDING_BASE_URL: ${FLOWPAY_EMBEDDING_BASE_URL:-http://ollama:11434/v1}
+      REPO_EVIDENCE_CONFIG: /app/backend/configs/local.toml
+      REPO_EVIDENCE_HOST: 0.0.0.0
+      REPO_EVIDENCE_DATA_DIR: /app/var/live
+      REPO_EVIDENCE_ALLOWED_ROOTS: '[{"id":"workspace","path":"/workspace"}]'
+      # 默认用下面 compose 起的 Ollama 服务；换成远端服务时在 .env 里覆盖这一项。
+      REPO_EVIDENCE_EMBEDDING_BASE_URL: ${REPO_EVIDENCE_EMBEDDING_BASE_URL:-http://ollama:11434/v1}
       # 聊天模型三项：密钥必填，地址与模型名留空时用 local.toml 里的默认值。
-      FLOWPAY_MODEL_API_KEY: ${FLOWPAY_MODEL_API_KEY:?Set FLOWPAY_MODEL_API_KEY in .env}
-      FLOWPAY_MODEL_BASE_URL: ${FLOWPAY_MODEL_BASE_URL:-}
-      FLOWPAY_MODEL_NAME: ${FLOWPAY_MODEL_NAME:-}
+      REPO_EVIDENCE_MODEL_API_KEY: ${REPO_EVIDENCE_MODEL_API_KEY:?Set REPO_EVIDENCE_MODEL_API_KEY in .env}
+      REPO_EVIDENCE_MODEL_BASE_URL: ${REPO_EVIDENCE_MODEL_BASE_URL:-}
+      REPO_EVIDENCE_MODEL_NAME: ${REPO_EVIDENCE_MODEL_NAME:-}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-ollama}
-      # 容器内走服务网络（postgres:5432），宿主机走发布出来的 127.0.0.1:55432。
-      # 角色名、库名和口令都是固定的，连接串在这里直接拼，不存进 .env。
-      FLOWPAY_KNOWLEDGE_DSN: postgresql://flowpay_knowledge_reader:${FLOWPAY_DB_PASSWORD:-flowpay_local}@postgres:5432/flowpay_knowledge
-      FLOWPAY_KNOWLEDGE_BUILDER_DSN: postgresql://flowpay_knowledge_builder:${FLOWPAY_DB_PASSWORD:-flowpay_local}@postgres:5432/flowpay_knowledge
-      FLOWPAY_KNOWLEDGE_ADMIN_DSN: postgresql://flowpay_admin:${FLOWPAY_DB_PASSWORD:-flowpay_local}@postgres:5432/flowpay_knowledge
-      # database.py setup 建 reader 与 builder 角色时用同一个口令。
-      FLOWPAY_DB_PASSWORD: ${FLOWPAY_DB_PASSWORD:-flowpay_local}
+      REPO_EVIDENCE_KNOWLEDGE_DSN: postgresql://repo_evidence_knowledge_reader:${REPO_EVIDENCE_DB_PASSWORD:-repo_evidence_local}@postgres:5432/repo_evidence_knowledge
+      REPO_EVIDENCE_KNOWLEDGE_BUILDER_DSN: postgresql://repo_evidence_knowledge_builder:${REPO_EVIDENCE_DB_PASSWORD:-repo_evidence_local}@postgres:5432/repo_evidence_knowledge
+      REPO_EVIDENCE_KNOWLEDGE_ADMIN_DSN: postgresql://repo_evidence_admin:${REPO_EVIDENCE_DB_PASSWORD:-repo_evidence_local}@postgres:5432/repo_evidence_knowledge
+      REPO_EVIDENCE_DB_PASSWORD: ${REPO_EVIDENCE_DB_PASSWORD:-repo_evidence_local}
     volumes:
       - ./backend:/app/backend
       - ./scripts:/app/scripts
       - ./var:/app/var
-      - ${FLOWPAY_DATASET_ROOT}:/dataset:ro
+      - ${REPO_EVIDENCE_ALLOWED_ROOT_PATH:?Set REPO_EVIDENCE_ALLOWED_ROOT_PATH in .env}:/workspace:ro
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${REPO_EVIDENCE_BACKEND_PORT:-8000}:8000"
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -92,8 +79,8 @@ services:
     depends_on:
       - backend
     environment:
-      FLOWPAY_API_PROXY: http://backend:8000
-      FLOWPAY_POLL_WATCH: "1"
+      REPO_EVIDENCE_API_PROXY: http://backend:8000
+      REPO_EVIDENCE_POLL_WATCH: "1"
     volumes:
       - ./frontend/src:/app/frontend/src
       - ./frontend/public:/app/frontend/public
@@ -103,21 +90,21 @@ services:
       - ./frontend/tsconfig.app.json:/app/frontend/tsconfig.app.json
       - ./frontend/tsconfig.node.json:/app/frontend/tsconfig.node.json
     ports:
-      - "127.0.0.1:5173:5173"
+      - "127.0.0.1:${REPO_EVIDENCE_FRONTEND_PORT:-5173}:5173"
 
-  # 嵌入服务，必需：数据包只带文档向量，用户每次提问都要现场把问题嵌成向量。
+  # 嵌入服务：索引代码片段及用户问题时均使用同一个模型。
   # 不对外发布 11434，避免和宿主机已经装着的 Ollama 抢端口；后端走服务网络访问。
   ollama:
     image: ollama/ollama:0.12.3
     volumes:
-      - flowpay_ollama:/root/.ollama
+      - repo_evidence_ollama:/root/.ollama
     healthcheck:
       test: ["CMD-SHELL", "ollama list >/dev/null 2>&1"]
       interval: 5s
       timeout: 5s
       retries: 20
 
-  # 首次启动把嵌入模型拉进 flowpay_ollama 卷；已经拉过就直接退出。
+  # 首次启动把嵌入模型拉进 repo_evidence_ollama 卷；已有模型则直接退出。
   # 模型标签由 backend/configs/local.toml 的 embedding.name 决定，改那里也要改这里。
   # OLLAMA_HOST 让 CLI 作为客户端连上面那个服务，所以这里不挂模型卷、也不起 server。
   ollama-init:
@@ -137,5 +124,5 @@ services:
         fi
 
 volumes:
-  flowpay_postgres:
-  flowpay_ollama:
+  repo_evidence_postgres:
+  repo_evidence_ollama:

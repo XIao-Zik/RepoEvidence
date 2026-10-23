@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState } from "react";
 import {
   Activity,
   Braces,
@@ -9,41 +9,46 @@ import {
   Search,
   Maximize2,
   Minimize2,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { TraceMessageCard } from '@/components/trace-message'
-import { StatusBadge } from '@/components/status-badge'
-import { contentText, type TraceEntry } from '@/trace'
-import { time, type Inspect } from '@/lib/display'
-import type { TraceProjection } from '@/hooks/use-trace'
+} from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { TraceMessageCard } from "@/components/trace-message";
+import { StatusBadge } from "@/components/status-badge";
+import { contentText, type TraceEntry } from "@/trace";
+import { time, type Inspect } from "@/lib/display";
+import type { TraceProjection } from "@/hooks/use-trace";
 
 const kinds = [
-  ['all', '全部'],
-  ['call', '模型调用'],
-  ['tool', '工具'],
-  ['event', '检索等事件'],
-  ['error', '异常'],
-] as const
+  ["all", "全部"],
+  ["call", "模型调用"],
+  ["tool", "工具"],
+  ["event", "检索等事件"],
+  ["error", "异常"],
+] as const;
 
 function matches(entry: TraceEntry, kind: string, query: string): boolean {
   const category =
-    kind === 'all' ||
+    kind === "all" ||
     entry.kind === kind ||
-    (kind === 'error' && (entry.status === 'error' || entry.status === 'interrupted'))
+    (kind === "error" &&
+      (entry.status === "error" || entry.status === "interrupted"));
   return (
     category &&
     `${entry.label} ${contentText(entry.message?.content)} ${contentText(entry.arguments)}`
       .toLowerCase()
       .includes(query.trim().toLowerCase())
-  )
+  );
 }
 
 /** 筛选和折叠只影响展示，不更改投影或原始日志。 */
@@ -57,29 +62,32 @@ export function RunTrace({
   setWide,
   inspect,
 }: {
-  sessionId: string | null
-  eventCount: number
-  projection: TraceProjection
-  runFilter: string
-  setRunFilter: (value: string) => void
-  wide: boolean
-  setWide: (value: boolean) => void
-  inspect: Inspect
+  sessionId: string | null;
+  eventCount: number;
+  projection: TraceProjection;
+  runFilter: string;
+  setRunFilter: (value: string) => void;
+  wide: boolean;
+  setWide: (value: boolean) => void;
+  inspect: Inspect;
 }) {
-  const { runs, visibleRuns, visibleEvents, tokens } = projection
-  const [kind, setKind] = useState('all')
-  const [query, setQuery] = useState('')
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const [expandDefault, setExpandDefault] = useState(true)
-  const bottom = useRef<HTMLDivElement>(null)
+  const { runs, visibleRuns, visibleEvents, tokens } = projection;
+  const [kind, setKind] = useState("all");
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [expandDefault, setExpandDefault] = useState(true);
+  const bottom = useRef<HTMLDivElement>(null);
   const shown = visibleRuns.map((run) => ({
     run,
     entries: run.entries.filter((entry) => matches(entry, kind, query)),
-  }))
-  const count = shown.reduce((sum, item) => sum + item.entries.length, 0)
-  const filtered = kind !== 'all' || !!query.trim()
+  }));
+  const count = shown.reduce((sum, item) => sum + item.entries.length, 0);
+  const filtered = kind !== "all" || !!query.trim();
   return (
-    <aside aria-label="运行轨迹" className="flex min-h-0 flex-1 flex-col bg-muted/40">
+    <aside
+      aria-label="运行轨迹"
+      className="flex min-h-0 flex-1 flex-col bg-muted/40"
+    >
       <div className="shrink-0 space-y-3 border-b bg-background/80 px-4 pt-5 pb-3">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-xs font-semibold">
@@ -87,7 +95,8 @@ export function RunTrace({
             运行轨迹
           </h2>
           <span className="text-[10px] text-muted-foreground">
-            {runs.length} 轮 · {tokens ? `${tokens.toLocaleString()} tokens` : '暂无用量'}
+            {runs.length} 轮 ·{" "}
+            {tokens ? `${tokens.toLocaleString()} tokens` : "暂无用量"}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -102,7 +111,8 @@ export function RunTrace({
               <SelectItem value="all">全部运行 ({runs.length})</SelectItem>
               {runs.map((run) => (
                 <SelectItem key={run.id} value={run.id}>
-                  Run {String(run.number).padStart(2, '0')} · {time(run.startedAt)}
+                  Run {String(run.number).padStart(2, "0")} ·{" "}
+                  {time(run.startedAt)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -111,12 +121,16 @@ export function RunTrace({
             variant="ghost"
             size="icon"
             className="hidden size-8 md:inline-flex"
-            title={wide ? '恢复侧栏宽度' : '加宽以展开完整上下文'}
-            aria-label={wide ? '恢复侧栏宽度' : '加宽轨迹'}
+            title={wide ? "恢复侧栏宽度" : "加宽以展开完整上下文"}
+            aria-label={wide ? "恢复侧栏宽度" : "加宽轨迹"}
             aria-pressed={wide}
             onClick={() => setWide(!wide)}
           >
-            {wide ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            {wide ? (
+              <Minimize2 className="size-4" />
+            ) : (
+              <Maximize2 className="size-4" />
+            )}
           </Button>
           <Button
             variant="ghost"
@@ -125,16 +139,20 @@ export function RunTrace({
             title="查看原始日志"
             aria-label="查看原始日志"
             disabled={!eventCount}
-            onClick={() => inspect('会话原始事件', visibleEvents)}
+            onClick={() => inspect("会话原始事件", visibleEvents)}
           >
             <Braces className="size-4" />
           </Button>
           <Button variant="ghost" size="icon" className="size-8" asChild>
             <a
-              href={sessionId ? `/api/sessions/${encodeURIComponent(sessionId)}/export` : undefined}
+              href={
+                sessionId
+                  ? `/api/sessions/${encodeURIComponent(sessionId)}/export`
+                  : undefined
+              }
               aria-disabled={!sessionId}
               tabIndex={sessionId ? 0 : -1}
-              className={!sessionId ? 'pointer-events-none opacity-40' : ''}
+              className={!sessionId ? "pointer-events-none opacity-40" : ""}
               title="导出会话 JSONL"
               aria-label="导出会话 JSONL"
             >
@@ -157,7 +175,7 @@ export function RunTrace({
           {kinds.map(([value, label]) => (
             <Button
               key={value}
-              variant={kind === value ? 'secondary' : 'ghost'}
+              variant={kind === value ? "secondary" : "ghost"}
               size="sm"
               aria-pressed={kind === value}
               className="h-7 px-2 text-[10px]"
@@ -169,19 +187,19 @@ export function RunTrace({
         </div>
         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
           <span>
-            {count} 个步骤{filtered && ' · 已筛选'}
+            {count} 个步骤{filtered && " · 已筛选"}
           </span>
           <Button
             variant="ghost"
             size="sm"
             className="h-6 gap-1 px-1 text-[10px]"
             onClick={() => {
-              setExpanded({})
-              setExpandDefault(!expandDefault)
+              setExpanded({});
+              setExpandDefault(!expandDefault);
             }}
           >
             <ChevronsDownUp className="size-3" />
-            {expandDefault ? '折叠全部轮次' : '展开全部轮次'}
+            {expandDefault ? "折叠全部轮次" : "展开全部轮次"}
           </Button>
         </div>
       </div>
@@ -204,8 +222,8 @@ export function RunTrace({
               variant="link"
               size="sm"
               onClick={() => {
-                setKind('all')
-                setQuery('')
+                setKind("all");
+                setQuery("");
               }}
             >
               清除筛选
@@ -218,7 +236,9 @@ export function RunTrace({
             <Collapsible
               key={run.id}
               open={expanded[run.id] ?? expandDefault}
-              onOpenChange={(open) => setExpanded((values) => ({ ...values, [run.id]: open }))}
+              onOpenChange={(open) =>
+                setExpanded((values) => ({ ...values, [run.id]: open }))
+              }
             >
               <div className="mb-2 flex items-center gap-1">
                 <CollapsibleTrigger asChild>
@@ -228,7 +248,7 @@ export function RunTrace({
                   >
                     <ChevronDown className="size-3 shrink-0 transition-transform group-data-[state=closed]:-rotate-90" />
                     <span className="font-mono text-[10px]">
-                      RUN {String(run.number).padStart(2, '0')}
+                      RUN {String(run.number).padStart(2, "0")}
                     </span>
                     <time className="text-[10px] font-normal text-muted-foreground">
                       {time(run.startedAt)}
@@ -244,7 +264,7 @@ export function RunTrace({
                   className="size-7 shrink-0"
                   aria-label={`查看 Run ${run.number} 配置`}
                   title="运行配置与输入"
-                  onClick={() => inspect('运行配置与输入', run.startEvent)}
+                  onClick={() => inspect("运行配置与输入", run.startEvent)}
                 >
                   <Braces className="size-3" />
                 </Button>
@@ -253,7 +273,9 @@ export function RunTrace({
                 {/* 时间轴：序号沿竖线排下来，工具调用缩进到产生它的那次模型调用下面。 */}
                 <div className="relative ml-3 space-y-2 pl-6 before:absolute before:top-1 before:bottom-1 before:left-0 before:w-px before:bg-border">
                   {run.resumed && (
-                    <p className="py-1 text-[10px] text-amber-700">从中断轮次重新开始</p>
+                    <p className="py-1 text-[10px] text-amber-700">
+                      从中断轮次重新开始
+                    </p>
                   )}
                   {entries.map((entry, index) => (
                     <TraceMessageCard
@@ -261,7 +283,8 @@ export function RunTrace({
                       entry={entry}
                       step={index + 1}
                       nested={
-                        !!entry.parentId && entries.some((item) => item.id === entry.parentId)
+                        !!entry.parentId &&
+                        entries.some((item) => item.id === entry.parentId)
                       }
                       inspect={inspect}
                     />
@@ -271,7 +294,7 @@ export function RunTrace({
                       variant="ghost"
                       size="sm"
                       className="h-7 text-[10px] text-muted-foreground"
-                      onClick={() => inspect('运行结束事件', run.endEvent)}
+                      onClick={() => inspect("运行结束事件", run.endEvent)}
                     >
                       查看本轮结束信息
                     </Button>
@@ -292,12 +315,14 @@ export function RunTrace({
           className="h-7 gap-1 text-[10px]"
           disabled={!runs.length}
           onClick={() => {
-            setKind('all')
-            setQuery('')
-            setRunFilter('all')
-            setExpanded({})
-            setExpandDefault(true)
-            requestAnimationFrame(() => bottom.current?.scrollIntoView({ block: 'end' }))
+            setKind("all");
+            setQuery("");
+            setRunFilter("all");
+            setExpanded({});
+            setExpandDefault(true);
+            requestAnimationFrame(() =>
+              bottom.current?.scrollIntoView({ block: "end" }),
+            );
           }}
         >
           <ArrowDown className="size-3" />
@@ -305,5 +330,5 @@ export function RunTrace({
         </Button>
       </div>
     </aside>
-  )
+  );
 }

@@ -1,111 +1,83 @@
-# FlowPay Agentic RAG 教学项目
+# RepoEvidence
 
-围绕一家虚构支付公司 FlowPay 的客服场景，分阶段（s1—s4）手写 Agentic RAG：
-从一次检索一次回答，到模型自己决定检索几轮、用哪个工具。
+RepoEvidence 是一个本地优先的代码库证据问答与只读排障助手。用户选择一个被授权的本地仓库，系统安全扫描代码、建立带行号的不可变索引快照，并让 Agent 基于该快照回答问题。
 
-## 前置条件
+它不读取授权目录之外的文件，不执行仓库命令，也不直接改写你的代码。
 
-| 需要什么 | 说明 |
-| --- | --- |
-| Docker Desktop | 数据库、嵌入服务、后端和前端都在容器里跑 |
-| 聊天模型密钥 | 任何 OpenAI 兼容服务都行，默认用 DeepSeek |
-| 教学数据包 | 单独下发的 `flowpay-dataset-v1.zip` 或 `.tar.gz`，不随仓库分发 |
-| 约 8 GB 磁盘 | 镜像约 6.5 GB（其中 ollama 自己占 4.5 GB）、嵌入模型 640 MB、数据包解开后约 160 MB |
+## 核心能力
 
-本机**不需要**预装 Python、Node 或 Ollama。嵌入模型由 `make up` 自动下载。
+- 登记并索引一个本地代码仓库；浏览器只提交“授权根目录 ID + 相对路径”。
+- 检索结果携带仓库相对路径与精确行号，可回看原始证据片段。
+- 每个会话绑定一个已就绪的索引快照，保证回答可复现。
+- 每次提问及工具读文件前都复核文件清单；若代码变更，索引会标记为过期并拒绝混用新旧证据。
+- 用户确认刷新后创建新的索引快照；旧会话仍保留旧版本的证据链。
 
-## 快速开始
+完整功能说明、代码地图和可安全修改的位置见 [docs/PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md)。面试演示步骤见 [docs/DEMO.md](docs/DEMO.md)。
 
-```bash
-cp .env.example .env     # 然后填下面两项
-make up                  # 首次视网络而定，主要花在拉 4.5 GB 的 ollama 镜像和 640 MB 的模型
-```
+## 快速开始（WSL2 / Linux / macOS）
 
-`.env` 里只有两项必填：
+1. 在 WSL2、Linux 或 macOS 中克隆仓库并进入根目录。
+2. 复制环境文件：`cp .env.example .env`。
+3. 在 `.env` 中填写：
+   - `REPO_EVIDENCE_MODEL_API_KEY`：OpenAI 兼容聊天模型的密钥；
+   - `REPO_EVIDENCE_ALLOWED_ROOT_PATH`：允许索引的代码仓库父目录，例如 `/home/you/projects`。
+4. 执行 `make up`。首次运行会构建镜像、启动 PostgreSQL 与 Ollama，并下载嵌入模型。
+5. 打开 `http://127.0.0.1:5173`，登记该目录下的一个相对路径，例如 `my-service`，创建索引后再创建会话。
 
-- `FLOWPAY_MODEL_API_KEY`：聊天模型密钥
-- `FLOWPAY_DATASET_ROOT`：数据包位置，填 `.zip` / `.tar.gz` 都行，首次启动自动解开
+服务只将 `REPO_EVIDENCE_ALLOWED_ROOT_PATH` 以只读方式挂载给后端。不要把你的整个 Home 目录或包含密钥的目录设为授权根。
 
-跑完打开 <http://127.0.0.1:5173/>，接口在 <http://127.0.0.1:8000/>。
-
-想跑别的阶段：`STAGE=s2 make up`（可选 s1—s4）。
-
-## `make up` 做了什么
-
-每一步都可以重复执行，已经完成的会跳过：
-
-1. 校验 `.env`，把数据包解开成绝对路径交给 compose
-2. 起 PostgreSQL（pgvector）
-3. 导入知识库：100 篇文档、712 个向量，直接从数据包的 dump 恢复，不用自己算
-4. 起 Ollama，并确保嵌入模型 `qwen3-embedding:0.6b` 就位
-5. 核对模型 digest 与 `backend/configs/local.toml` 的 `embedding.revision` 是否一致
-6. 起后端与前端
-
-模型存在 `flowpay_ollama` 这个 docker 卷里，`make down` 不会删，所以只下载一次。
-
-## 为什么必须有嵌入服务
-
-数据包省掉的是**建库**：100 篇文档切成 712 块，每块的向量都算好了。
-
-但用户每提一个问题，这个问题本身也要现场嵌成向量，才能和库里那 712 个向量比相似度。
-这一步没法预先做——没人知道用户会问什么。所以 Ollama 是运行期的必需服务，
-不是可选加速项。
-
-两边的向量必须出自同一个模型才可比。`KnowledgeClient.search` 在嵌入之前会用
-`same_vector_space` 核对集合记录的模型身份（provider / model / revision / base_url /
-dimensions / request_options），对不上直接报错，不会让检索悄悄退化成噪声。
-
-这也是为什么**嵌入服务的端口必须是 11434**：集合里的向量是在该端口建的，
-端口参与向量空间身份比较（主机名不参与，`127.0.0.1`、`host.docker.internal`、
-`ollama` 会被归一成同一个部署）。
+如果仍在运行旧项目，可在 `.env` 设置 `REPO_EVIDENCE_POSTGRES_PORT=55433`、`REPO_EVIDENCE_BACKEND_PORT=18000`、`REPO_EVIDENCE_FRONTEND_PORT=15173`；之后从 `http://127.0.0.1:15173` 打开新项目。这样不需要停止旧容器。
 
 ## 常用命令
 
-```
-make up        起全栈（BUILD=1 强制重建镜像）
-make down      停容器，数据卷保留
-make logs      跟踪后端与前端日志
-make help      列出全部目标
+```bash
+make up       # 构建并启动前后端、数据库和嵌入服务
+make down     # 停止服务，保留 Docker 数据卷
+make logs     # 查看后端与前端日志
+make test     # 运行后端测试
+make quality  # 后端质量检查、前端格式/测试/构建
+make eval     # 运行不调用模型的开发者 RAG 证据评测
+make benchmark-index # 运行固定 fixture 的全量/增量索引性能基准，不调用模型
+# 仅在服务已启动、存在唯一 ready 仓库时运行；会产生真实模型调用费用
+REPO_EVIDENCE_RUN_ONLINE_EVAL=1 make eval-online
+make ci       # 运行质量门禁与离线评测（本地与 GitHub Actions 共用）
 ```
 
-## 换聊天模型
+## 索引范围、旧快照与交付
 
-在 `.env` 里填这两项，留空则用 `backend/configs/local.toml` 的默认值：
+- 想排除仓库中的生成物或测试夹具时，可在**被索引仓库根目录**新增 `.repoevidenceignore`；每行一个 POSIX glob，目录以 `/` 结尾，例如 `coverage/`、`*.log`。它只会减少索引范围，不能取消系统默认的密钥、依赖和二进制排除规则。
+- “清理旧快照”会先显示候选项，再要求显式确认；仅删除失败或已替换、且没有被历史会话引用的快照。当前快照与历史会话的证据均不会被清理。证据详情会说明它是当前快照还是因历史会话而保留。
+- 离线评测是开发者质量门禁，不出现在用户问答流程中；详细 JSON 写入被忽略的 `artifacts/evaluation/`，可提交的汇总写入 `docs/quality/`。
+- `make benchmark-index` 固定运行 3 次全量和 3 次单文件增量扫描/分块基准，使用本地生成的 118 文件 fixture 和确定性哈希写入模拟，不读用户代码仓库，也不调用网络模型。
+- `REPO_EVIDENCE_RUN_ONLINE_EVAL=1 make eval-online` 是手动触发的真实 Agent 测评：它运行 30 条带人工证据范围的题目，先确认目标仓库和当前快照均为 ready，再记录严格任务通过数、引用准确率/覆盖率和端到端 P50/P95。原始问题与回答只保存在被忽略的本地工件；`docs/quality/resume-evaluation.md` 仅包含聚合数据和局限性，不能把该结果表述为跨仓库通用准确率。
+
+首次交付到私有 GitHub 仓库时，在已登录 GitHub CLI 的 WSL 终端依次执行：
 
 ```bash
-FLOWPAY_MODEL_BASE_URL='https://api.openai.com/v1'
-FLOWPAY_MODEL_NAME='gpt-4.1-mini'
+make github-init       # 创建私有仓库、添加 repoevidence，并首次推送；不会改动来源 origin
+make deliver DRY_RUN=1 # 实际跑 make ci，只预览提交/推送命令
+make deliver           # 再次输入 PUSH 后才会提交并推送 repoevidence/main
 ```
 
-嵌入模型不要换：数据包里的向量和它绑定，换了就得自己重建整个集合。
+自动交付会拒绝 `.env*`、`artifacts/` 和 `var/` 路径；请在运行前自行检查将要提交的内容。
 
-## 宿主机直跑（进阶）
-
-要改 `backend/src/flowpay/core/` 或者需要断点调试时走这条，否则上面四个命令就够了。
-这条路径需要本机自己装好 uv、Node >= 22.12 和 **Ollama**：
+若你要在宿主机运行后端，请先在 `backend/` 中用 `uv sync` 建立虚拟环境，再执行：
 
 ```bash
-make setup SETUP_ARGS=--download-model   # 装依赖、建库，并下载嵌入模型到宿主机
-make run STAGE=s1                        # 后端
-make frontend                            # 前端
+REPO_EVIDENCE_CONFIG=backend/configs/local.toml \
+REPO_EVIDENCE_ALLOWED_ROOTS='[{"id":"projects","path":"/home/you/projects"}]' \
+repo-evidence
 ```
 
-`make setup` 只起 PostgreSQL 容器，嵌入服务用宿主机那个（`127.0.0.1:11434`）。
-`make doctor` 可以只做只读检查，不装东西也不调用聊天模型。
+还需要设置 `.env` 中的模型、嵌入模型和 PostgreSQL 连接变量。日常开发更建议使用 `make up`，避免宿主机与容器的服务地址不一致。
 
-## 常见问题
+## 代码变更时会发生什么
 
-**提问时报嵌入相关的错**  
-`docker compose ps` 看 ollama 是否在跑，`make logs` 看后端报什么。
-正常情况下 `make up` 已经确保模型就位，不该出现。
+RepoEvidence 不会继续用旧索引冒充最新代码：
 
-**启动时提示 digest 与 revision 不符**  
-上游更新了同名模型标签。新模型和数据包里的向量不在同一空间，不能混用；
-请使用数据包配套的模型版本，不要改 `revision` 绕过检查。
+```text
+工作区代码变更 → 扫描 SHA-256 清单 → 标记当前快照 stale
+→ 阻止新问题进入旧快照 → 用户确认刷新 → 构建并发布新快照
+```
 
-**端口被占**  
-需要 5173、8000、55432 三个端口。Ollama 的 11434 不对外发布，
-不会和你本机已装的 Ollama 冲突。
-
-**想从头再来**  
-`docker compose down -v` 删掉数据卷（知识库和嵌入模型都会没，下次 `make up` 重新准备）。
+旧快照不会被覆盖；已经完成的会话仍可审计。详情见 [docs/PROJECT_GUIDE.md](docs/PROJECT_GUIDE.md#代码变更与快照刷新)。

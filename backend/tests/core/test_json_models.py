@@ -6,8 +6,8 @@ import pytest
 from openai.types.chat import ChatCompletionMessageParam
 from pydantic_core import PydanticSerializationError
 
-from flowpay.core.json import JsonObject, to_json_object
-from flowpay.core.llm.chat.messages import MessageLog
+from repo_evidence.core.json import JsonObject, to_json_object
+from repo_evidence.core.llm.chat.messages import MessageLog
 
 
 @dataclass

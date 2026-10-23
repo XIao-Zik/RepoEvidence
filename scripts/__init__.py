@@ -1,1 +1,1 @@
-"""项目准备与维护脚本，不属于后端运行包。"""
+"""Local development and delivery helpers."""

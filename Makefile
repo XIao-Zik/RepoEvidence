@@ -1,92 +1,95 @@
-# FlowPay 常用开发命令。在仓库根目录执行：make <目标>
-#
-# 三种 Python 调用，按"虚拟环境存不存在"分：
-#   $(PYTHON)  系统 python3，只给 setup / doctor 用，它们要在 venv 建好之前跑
-#   $(VENV)    backend/.venv/bin/python，其余全部用它
-#   uv         只出现在 sync 里，负责建出上面那个 venv
-# 曾经混用 `uv run pytest` 导致仓库根不在 sys.path，scripts 包整包导不进来。
+# RepoEvidence 本地开发命令。请在 WSL2、Linux 或 macOS 的仓库根目录执行。
 
 .DEFAULT_GOAL := help
 
-PYTHON ?= python3
-VENV   := backend/.venv/bin/python
+VENV := backend/.venv/bin
 CONFIG := backend/configs/local.toml
+BACKEND_RUN := docker compose run --rm --no-deps -T -v "$(CURDIR):/app" backend
+FRONTEND_RUN := docker compose run --rm --no-deps -T frontend
+GITHUB_REPO ?= repo-evidence
+GITHUB_REMOTE ?= repoevidence
 
-STAGE      ?= s1
-STAGES     ?= s1,s2,s3,s4
-PER_TYPE   ?= 2
-SETUP_ARGS ?=
+.PHONY: help up down logs ps test frontend-test frontend-build quality eval benchmark-index eval-online evaluate-resume ci github-init deliver db-up db-setup run
 
-# Python 不自动读 .env。这里在同一条 shell 里加载它，再派生两类变量：
-# 数据集路径，以及三个角色的连接串。口令固定，与 compose.yaml 里那份同一个默认值；
-# 容器那份走 postgres:5432，这里是宿主机那份，走发布出来的端口。
-DB_HOST := 127.0.0.1:55432/flowpay_knowledge
-define with-env
-	set -a; [ -f .env ] && . ./.env; \
-	[ -n "$$FLOWPAY_DATASET_ROOT" ] && FLOWPAY_DATASET_PATH="$$FLOWPAY_DATASET_ROOT/data"; \
-	FLOWPAY_DB_PASSWORD="$${FLOWPAY_DB_PASSWORD:-flowpay_local}"; \
-	FLOWPAY_KNOWLEDGE_ADMIN_DSN="postgresql://flowpay_admin:$$FLOWPAY_DB_PASSWORD@$(DB_HOST)"; \
-	FLOWPAY_KNOWLEDGE_DSN="postgresql://flowpay_knowledge_reader:$$FLOWPAY_DB_PASSWORD@$(DB_HOST)"; \
-	FLOWPAY_KNOWLEDGE_BUILDER_DSN="postgresql://flowpay_knowledge_builder:$$FLOWPAY_DB_PASSWORD@$(DB_HOST)"; set +a;
-endef
+help: ## 显示可用命令
 
-# 目标全部是 .PHONY：没有一个是在生成同名文件。
-.PHONY: $(shell sed -n 's/^\([a-zA-Z0-9_-]*\):.*##.*/\1/p' $(MAKEFILE_LIST))
+	@awk 'BEGIN { FS = ":.*## " } /^[a-zA-Z0-9_-]+:.*## / { printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
-help: ## 列出可用目标
-	@awk 'BEGIN {FS = ":.*## "} \
-		/^##@ / {printf "\n\033[1m%s\033[0m\n", substr($$0, 5); next} \
-		/^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-	@echo
+up: ## 构建并后台启动完整本地服务；需先配置 .env
 
-##@ 教程路径
+	docker compose up --build -d
 
-up: ## 起全栈：校验 .env、备好数据库、知识库与嵌入模型，再起全部容器
-	$(PYTHON) scripts/start.py $(if $(BUILD),--build)
+down: ## 停止服务，保留 PostgreSQL 与 Ollama 数据卷
 
-down: ## 停止全栈容器，数据卷保留（知识库与嵌入模型不会丢）
 	docker compose down
 
-logs: ## 跟踪后端与前端日志
+logs: ## 持续查看后端与前端日志
+
 	docker compose logs -f backend frontend
 
-##@ 宿主机直跑
+ps: ## 查看服务运行状态
 
-# 要改 core/ 或者需要断点时才走这条；只用容器的话上面四个就够。
-setup: ## 一键准备本地配置、依赖、数据库与知识集合（含 uv sync）
-	$(PYTHON) scripts/setup.py $(SETUP_ARGS)
+	docker compose ps
 
-doctor: ## 只读检查基础环境，不安装依赖也不调用聊天模型
-	$(PYTHON) scripts/doctor.py $(SETUP_ARGS)
+test: ## 在容器中运行所有后端测试，不依赖宿主机虚拟环境
 
-db-up: ## 只起 PostgreSQL（make up 会自己带上它）
+	$(BACKEND_RUN) /opt/venv/bin/python -m pytest backend/tests -q
+
+frontend-test: ## 在容器中运行前端 Vitest 测试
+
+	$(FRONTEND_RUN) npm test -- --run
+
+frontend-build: ## 在容器中构建前端生产包
+
+	$(FRONTEND_RUN) npm run build
+
+quality: ## 在容器中运行后端 Ruff、测试，以及前端格式、测试与构建
+
+	$(BACKEND_RUN) /opt/venv/bin/ruff check backend/src backend/tests backend/migrations
+
+	$(BACKEND_RUN) /opt/venv/bin/ruff format --check backend/src backend/tests backend/migrations
+
+	$(BACKEND_RUN) /opt/venv/bin/python -m pytest backend/tests -q
+
+	$(FRONTEND_RUN) npm run format:check
+
+	$(FRONTEND_RUN) npm test -- --run
+
+	$(FRONTEND_RUN) npm run build
+
+eval: ## 运行不调用在线模型的确定性证据评测
+
+	$(BACKEND_RUN) /opt/venv/bin/python -m repo_evidence.evaluation.runner
+
+benchmark-index: ## 运行不调用模型的固定 fixture 索引性能基准
+
+	$(BACKEND_RUN) /opt/venv/bin/python -m repo_evidence.evaluation.index_benchmark
+
+eval-online: ## 运行显式授权的真实 Agent 评测；需 REPO_EVIDENCE_RUN_ONLINE_EVAL=1
+
+	@test "$(REPO_EVIDENCE_RUN_ONLINE_EVAL)" = "1" || (echo "Set REPO_EVIDENCE_RUN_ONLINE_EVAL=1"; exit 2)
+	$(BACKEND_RUN) /opt/venv/bin/python -m repo_evidence.evaluation.online_runner
+
+evaluate-resume: eval benchmark-index eval-online ## 手动生成完整简历评测报告
+
+ci: quality eval ## 运行本地与 GitHub 共用的离线质量门禁
+
+github-init: ## 创建名为 repoevidence 的私有远程，不改动来源 origin
+
+	gh auth status && gh repo create $(GITHUB_REPO) --private --source . --remote $(GITHUB_REMOTE) --push
+
+deliver: ## 检查、确认后提交并推送 repoevidence/main；DRY_RUN=1 只预览
+
+	python3 -m scripts.delivery.deliver --remote $(GITHUB_REMOTE) $(if $(filter 1,$(DRY_RUN)),--dry-run,)
+
+db-up: ## 仅启动 PostgreSQL
+
 	docker compose up -d --wait postgres
 
-db-setup: ## 执行知识库结构迁移与角色授权（setup 已包含，升级旧库时单独跑）
-	@$(with-env) $(VENV) scripts/database.py setup
+db-setup: ## 初始化向量库表和最小数据库权限
 
-run: ## 课程后端（STAGE 可选 s1—s4）
-	@$(with-env) backend/.venv/bin/flowpay --config $(CONFIG) --stage $(STAGE)
+	docker compose run --rm database-init
 
-frontend: ## 前端开发服务器
-	npm --prefix frontend run dev
+run: ## 在宿主机启动后端；需自行设置模型、数据库和允许根目录变量
 
-##@ 开发
-
-test: ## 只跑 backend pytest（未配置数据集时相关用例自动跳过）
-	@$(with-env) $(VENV) -m pytest backend/tests -q
-
-quality: ## 代码质量门禁：ruff、basedpyright、pytest、前端构建
-	@$(with-env) $(VENV) scripts/check_quality.py
-
-benchmark: ## 数据集 300 题分层对照（PER_TYPE=0 表示全量）
-	@$(with-env) $(VENV) scripts/benchmark/run.py --stages $(STAGES) --per-type $(PER_TYPE)
-
-blueprints: ## 把 300 题渲染成可读 Markdown，落在数据集的 benchmark/readable/
-	@$(with-env) $(PYTHON) scripts/benchmark/render.py
-
-demo: ## 起确定性契约后端，只验协议不跑课程阶段（需先 make setup）
-	$(VENV) scripts/demo.py --config $(CONFIG)
-
-smoke: ## 对着已在跑的后端验 HTTP/SSE：断线回放、取消与继续
-	@$(with-env) $(VENV) scripts/smoke_runtime.py
+	REPO_EVIDENCE_CONFIG=$(CONFIG) $(VENV)/repo-evidence

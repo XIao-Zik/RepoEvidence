@@ -6,13 +6,13 @@ from collections.abc import Sequence
 
 from openai.types.chat import ChatCompletion, ChatCompletionMessageParam, ChatCompletionToolParam
 
-from flowpay.core.config import Settings
-from flowpay.core.execution.contracts import TurnInput, TurnResult
-from flowpay.core.execution.runtime import AgentRuntime
-from flowpay.core.execution.stage import StageCard
-from flowpay.core.json import JsonObject
-from flowpay.core.llm.chat import ChunkSink
-from flowpay.core.tools import Tool
+from repo_evidence.core.config import Settings
+from repo_evidence.core.execution.contracts import TurnInput, TurnResult
+from repo_evidence.core.execution.runtime import AgentRuntime
+from repo_evidence.core.execution.stage import StageCard
+from repo_evidence.core.json import JsonObject
+from repo_evidence.core.llm.chat import ChunkSink
+from repo_evidence.core.tools import Tool
 
 
 class FixtureAdapter:

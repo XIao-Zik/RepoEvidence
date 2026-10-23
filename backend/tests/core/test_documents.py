@@ -1,6 +1,6 @@
-"""通用 Markdown 能力不要求 FlowPay 的发布范围或文档类型标签。"""
+"""通用 Markdown 能力不依赖特定产品的发布范围或文档类型标签。"""
 
-from flowpay.core.knowledge.documents import parse_document, split_document
+from repo_evidence.core.knowledge.documents import parse_document, split_document
 
 
 def test_document_parser_preserves_metadata_without_imposing_release_policy() -> None:

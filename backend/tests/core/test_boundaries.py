@@ -5,12 +5,17 @@ from pathlib import Path
 
 def test_core_does_not_import_workflow_or_adapter() -> None:
     root = Path(__file__).resolve().parents[2]
-    assert (root / "src/flowpay/core").is_dir()
+    assert (root / "src/repo_evidence/core").is_dir()
     assert (root / "tests/core").is_dir()
-    files = list((root / "src/flowpay/core").rglob("*.py"))
+    files = list((root / "src/repo_evidence/core").rglob("*.py"))
     files += list((root / "tests/core").rglob("*.py"))
     for path in files:
-        forbidden = ("flowpay.workflows", "flowpay.adapters", "flowpay.router", "flowpay.bootstrap")
+        forbidden = (
+            "repo_evidence.workflows",
+            "repo_evidence.adapters",
+            "repo_evidence.router",
+            "repo_evidence.bootstrap",
+        )
         if "src" in path.parts:
             forbidden += ("scripts",)
         tree = ast.parse(path.read_text())
@@ -23,7 +28,7 @@ def test_core_does_not_import_workflow_or_adapter() -> None:
 
 def test_workflows_use_capability_interfaces_without_infrastructure() -> None:
     """保护课堂入口：执行机制和业务适配必须从装配层注入。"""
-    root = Path(__file__).resolve().parents[2] / "src/flowpay/workflows"
+    root = Path(__file__).resolve().parents[2] / "src/repo_evidence/workflows"
     assert root.is_dir()
     forbidden = (
         "openai",
@@ -32,14 +37,14 @@ def test_workflows_use_capability_interfaces_without_infrastructure() -> None:
         "sqlite3",
         "os",
         "json",
-        "flowpay.adapters",
-        "flowpay.bootstrap",
-        "flowpay.router",
+        "repo_evidence.adapters",
+        "repo_evidence.bootstrap",
+        "repo_evidence.router",
         "scripts",
-        "flowpay.core.llm.chat.openai_chat",
-        "flowpay.core.llm.embedding.openai_embedding",
-        "flowpay.core.knowledge.store",
-        "flowpay.core.event_log.store",
+        "repo_evidence.core.llm.chat.openai_chat",
+        "repo_evidence.core.llm.embedding.openai_embedding",
+        "repo_evidence.core.knowledge.store",
+        "repo_evidence.core.event_log.store",
     )
     for path in root.rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text())):

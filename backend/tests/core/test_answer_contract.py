@@ -4,17 +4,17 @@ from pathlib import Path
 
 import pytest
 
-from flowpay.core.agent import AgentTurn, Budget
-from flowpay.core.agent.reply import read_reply
-from flowpay.core.agent.trace import Tracer
-from flowpay.core.chat.context import chat_messages
-from flowpay.core.chat.types import ChatMessage
-from flowpay.core.event_log import EventStore
-from flowpay.core.execution.contracts import TurnInput
-from flowpay.core.execution.runtime import AgentRuntime
-from flowpay.core.json import parse_json, require_list, require_object
-from flowpay.core.knowledge.passages import PassageSet
-from flowpay.core.llm.chat.messages import MessageLog, ModelOutputError
+from repo_evidence.core.agent import AgentTurn, Budget
+from repo_evidence.core.agent.reply import read_reply
+from repo_evidence.core.agent.trace import Tracer
+from repo_evidence.core.chat.context import chat_messages
+from repo_evidence.core.chat.types import ChatMessage
+from repo_evidence.core.event_log import EventStore
+from repo_evidence.core.execution.contracts import TurnInput
+from repo_evidence.core.execution.runtime import AgentRuntime
+from repo_evidence.core.json import parse_json, require_list, require_object
+from repo_evidence.core.knowledge.passages import PassageSet
+from repo_evidence.core.llm.chat.messages import MessageLog, ModelOutputError
 
 from ..workflows.fixtures import (
     ANSWER,

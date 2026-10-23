@@ -1,0 +1,5 @@
+# Optional repository-specific exclusions for RepoEvidence indexing.
+# One POSIX glob per line; directory rules end with a slash.
+artifacts/
+var/
+coverage/
